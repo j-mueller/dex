@@ -4,19 +4,18 @@ module Teddy.Matcher.Scripts(
   loadScripts
 ) where
 
-import qualified Cardano.Api           as C
-import           Cardano.Binary        (DecoderError)
-import qualified Data.ByteString.Short as Short
-import           Data.Proxy            (Proxy (..))
-import qualified ErgoDex.PValidators   as V
+import qualified Cardano.Api          as C
+import           Cardano.Binary       (DecoderError)
+import           Control.Monad.Except (ExceptT (..))
+import qualified ErgoDex.PValidators  as V
 
-loadScripts :: IO (Either DecoderError Scripts)
+loadScripts :: ExceptT DecoderError IO Scripts
 loadScripts =
   Scripts
-    <$> V.poolValidator
-    <*> V.swapValidator
-    <*> V.depositValidator
-    <*> V.redeemValidator
+    <$> ExceptT V.poolValidator
+    <*> ExceptT V.swapValidator
+    <*> ExceptT V.depositValidator
+    <*> ExceptT V.redeemValidator
 
 -- | Plutus scripts that we need for the dex
 data Scripts =

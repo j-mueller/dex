@@ -40,8 +40,10 @@ library
     base >=4.16.4 && <5,
     cardano-dex-contracts-offchain,
     cardano-api,
+    cardano-binary,
     convex-base,
-    bytestring
+    bytestring,
+    mtl
 
 test-suite teddy-matcher-test
   import: lang
@@ -56,4 +58,5 @@ test-suite teddy-matcher-test
     base >=4.16.4 && <5,
     teddy-matcher,
     tasty,
-    tasty-hunit
+    tasty-hunit,
+    mtl
