@@ -42,3 +42,18 @@ library
     cardano-api,
     convex-base,
     bytestring
+
+test-suite teddy-matcher-test
+  import: lang
+  hs-source-dirs:
+    test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+    Spec.Unit
+
+  build-depends:
+    base >=4.16.4 && <5,
+    teddy-matcher,
+    tasty,
+    tasty-hunit

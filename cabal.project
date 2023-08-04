@@ -31,7 +31,7 @@ if impl(ghc >= 9.2)
 source-repository-package
   type: git
   location: https://github.com/j-mueller/cardano-dex-contracts
-  tag: b40fc9401ef3b1f4761e471a87c75fa60f654195
+  tag: 43807348c2e4d3be474169fe0a28cc14b446b67b
   subdir:
     cardano-dex-contracts-offchain
 

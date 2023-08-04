@@ -5,18 +5,25 @@ module Teddy.Matcher.Scripts(
 ) where
 
 import qualified Cardano.Api           as C
+import           Cardano.Binary        (DecoderError)
 import qualified Data.ByteString.Short as Short
 import           Data.Proxy            (Proxy (..))
 import qualified ErgoDex.PValidators   as V
 
-loadScripts :: IO Scripts
+loadScripts :: IO (Either DecoderError Scripts)
 loadScripts =
   Scripts
-    <$> fmap (either (error . show) id . C.deserialiseFromCBOR (C.proxyToAsType $ Proxy @(C.Script C.PlutusScriptV2)) . Short.fromShort) V.poolValidator
+    <$> V.poolValidator
+    <*> V.swapValidator
+    <*> V.depositValidator
+    <*> V.redeemValidator
 
 -- | Plutus scripts that we need for the dex
 data Scripts =
   Scripts
-    { sPoolValidator :: C.Script C.PlutusScriptV2
+    { sPoolValidator    :: C.Script C.PlutusScriptV2
+    , sSwapValidator    :: C.Script C.PlutusScriptV2
+    , sDepositValidator :: C.Script C.PlutusScriptV2
+    , sRedeemValidator  :: C.Script C.PlutusScriptV2
     }
     deriving Show
