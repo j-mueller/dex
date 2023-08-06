@@ -59,4 +59,5 @@ test-suite teddy-matcher-test
     teddy-matcher,
     tasty,
     tasty-hunit,
-    mtl
+    mtl,
+    cardano-api
