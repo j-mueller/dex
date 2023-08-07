@@ -31,9 +31,10 @@ if impl(ghc >= 9.2)
 source-repository-package
   type: git
   location: https://github.com/j-mueller/cardano-dex-contracts
-  tag: 43807348c2e4d3be474169fe0a28cc14b446b67b
+  tag: 8afe1c8c63e068add24b002330bfaadb4fb657d2
   subdir:
     cardano-dex-contracts-offchain
+    cardano-dex-contracts-onchain
 
 source-repository-package
   type: git
@@ -41,3 +42,16 @@ source-repository-package
   tag: bb99eda7a5da9b685317939ad94481b2b5872ef1
   subdir:
     src/base
+    src/coin-selection
+    src/mockchain
+    src/node-client
+    src/wallet
+
+-- Direct dependency.
+source-repository-package
+  type: git
+  location: https://github.com/j-mueller/plutarch-plutus
+  tag: 744e0ae262c5fa0f3adc36fab6b4cf9be5728dc6
+  subdir:
+    .
+    plutarch-extra 
