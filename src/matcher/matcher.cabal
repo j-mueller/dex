@@ -1,7 +1,7 @@
 cabal-version:       2.2
 name:                teddy-matcher
 version:             0.1.0.0
-synopsis:            Matcher code for tedday swap DEX
+synopsis:            Matcher code for teddy swap DEX
 license-file: LICENSE
 license: Apache-2.0
 author: Jann Müller <j-mueller@users.noreply.github.com>
@@ -34,16 +34,29 @@ library
     lib
   exposed-modules:
     Teddy.Matcher
+    Teddy.Matcher.Operator
+    Teddy.Matcher.Query
     Teddy.Matcher.Scripts
+    Teddy.Matcher.State
+    Teddy.Matcher.Utils
 
   build-depends:
     base >=4.16.4 && <5,
     cardano-dex-contracts-offchain,
     cardano-api,
     cardano-binary,
-    convex-base,
+    cardano-crypto,
     bytestring,
-    mtl
+    containers,
+    mtl,
+    either-result,
+    transformers,
+    exceptions,
+    convex-base,
+    convex-mockchain,
+    convex-coin-selection,
+    convex-wallet,
+    plutus-ledger-api
 
 test-suite teddy-matcher-test
   import: lang
@@ -60,4 +73,6 @@ test-suite teddy-matcher-test
     tasty,
     tasty-hunit,
     mtl,
-    cardano-api
+    cardano-api,
+    convex-mockchain,
+    plutus-ledger-api
