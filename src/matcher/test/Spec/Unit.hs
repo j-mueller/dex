@@ -15,7 +15,8 @@ import           Data.Bifunctor         (Bifunctor (..))
 import           Data.Function          ((&))
 import           Data.Proxy             (Proxy (..))
 import qualified Teddy.Matcher.BuildTx  as BuildTx
-import           Teddy.Matcher.BuildTx  (PoolLiquidityToken (..), PoolNFT (..))
+import           Teddy.Matcher.BuildTx  (PoolLiquidityToken (..), PoolNFT (..),
+                                         runBuildPoolTx)
 import           Teddy.Matcher.Operator (Operator (..), PaymentExtendedKey (..),
                                          Signing, balanceAndSubmitOperator,
                                          selectOperatorUTxO)
@@ -33,14 +34,14 @@ tests = testGroup "unit tests"
 createLQPoolNft :: (MonadUtxoQuery m, MonadFail m, MonadBlockchain m) => m (C.Tx C.BabbageEra, (PolicyId, AssetName))
 createLQPoolNft = do
   utxo <- selectOperatorUTxO testOperator >>= maybe (fail "No UTxO found") pure
-  PoolNFT{pnftTxBuild, pnftAsset} <- either (\x -> fail $ "BuildTx failed: " <> show x) pure (BuildTx.createPoolNft (fst utxo))
-  runExceptT (balanceAndSubmitOperator testOperator (pnftTxBuild emptyTx)) >>= either (fail . show) (pure . (,pnftAsset))
+  (PoolNFT{pnftAsset}, buildTx) <- runBuildPoolTx (BuildTx.createPoolNft (fst utxo)) >>= either (fail . (<>) "BuildTx failed: " . show) pure
+  runExceptT (balanceAndSubmitOperator testOperator (buildTx emptyTx)) >>= either (fail . show) (pure . (,pnftAsset))
 
 createLQPoolLiquidity :: (MonadUtxoQuery m, MonadFail m, MonadBlockchain m) => m (C.Tx C.BabbageEra, (PolicyId, AssetName))
 createLQPoolLiquidity = do
   utxo <- selectOperatorUTxO testOperator >>= maybe (fail "No UTxO found") pure
-  PoolLiquidityToken{pltTxBuild, pltAsset} <- either (\x -> fail $ "BuildTx failed: " <> show x) pure (BuildTx.createPoolLiquidityToken (fst utxo) 10000)
-  runExceptT (balanceAndSubmitOperator testOperator (pltTxBuild emptyTx)) >>= either (fail . show) (pure . (,pltAsset))
+  (PoolLiquidityToken{pltAsset}, buildTx) <- runBuildPoolTx (BuildTx.createPoolLiquidityToken (fst utxo) 10000) >>= either (fail . (<>) "BuildTx failed: " . show) pure
+  runExceptT (balanceAndSubmitOperator testOperator (buildTx emptyTx)) >>= either (fail . show) (pure . (,pltAsset))
 
 testOperator :: Operator Signing
 testOperator =

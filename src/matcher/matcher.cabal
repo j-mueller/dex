@@ -47,6 +47,7 @@ library
     cardano-api,
     cardano-binary,
     containers,
+    lens,
     mtl,
     either-result,
     transformers,
