@@ -34,6 +34,7 @@ library
     lib
   exposed-modules:
     Teddy.Matcher
+    Teddy.Matcher.BuildTx
     Teddy.Matcher.Operator
     Teddy.Matcher.Query
     Teddy.Matcher.Scripts
@@ -45,13 +46,10 @@ library
     cardano-dex-contracts-offchain,
     cardano-api,
     cardano-binary,
-    cardano-crypto,
-    bytestring,
     containers,
     mtl,
     either-result,
     transformers,
-    exceptions,
     convex-base,
     convex-mockchain,
     convex-coin-selection,
@@ -68,11 +66,13 @@ test-suite teddy-matcher-test
     Spec.Unit
 
   build-depends:
+    aeson,
     base >=4.16.4 && <5,
     teddy-matcher,
     tasty,
     tasty-hunit,
     mtl,
     cardano-api,
+    convex-base,
     convex-mockchain,
     plutus-ledger-api
