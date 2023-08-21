@@ -14,24 +14,27 @@ module Teddy.Matcher.BuildTx(
   PoolLiquidityToken(..),
   createPoolLiquidityToken,
   PoolOutput(..),
-  addPoolOutput
+  addPoolOutput,
+
+  poolConfig
 ) where
 
-import           Cardano.Api            (AssetName, PolicyId, TxIn, Value)
-import qualified Cardano.Api.Shelley    as C
-import           Control.Lens           (over)
-import           Control.Monad.Except   (ExceptT, MonadError, liftEither,
-                                         runExceptT, throwError)
-import           Convex.BuildTx         (BuildTxT, MonadBuildTx (..), TxBuild,
-                                         mintPlutusV2, runBuildTxT,
-                                         spendPublicKeyOutput)
-import qualified Convex.Lenses          as L
-import           Convex.PlutusLedger    (transTxOutRef)
-import           Convex.Scripts         (toHashableScriptData)
-import           ErgoDex.CardanoApi     (CardanoApiScriptError,
-                                         poolLqMintingScript,
-                                         poolNftMintingScript, poolScript)
-import           ErgoDex.Contracts.Pool (PoolConfig (..))
+import           Cardano.Api              (AssetName, PolicyId, TxIn, Value)
+import qualified Cardano.Api.Shelley      as C
+import           Control.Lens             (over)
+import           Control.Monad.Except     (ExceptT, MonadError, liftEither,
+                                           runExceptT, throwError)
+import           Convex.BuildTx           (BuildTxT, MonadBuildTx (..), TxBuild,
+                                           mintPlutusV2, runBuildTxT,
+                                           spendPublicKeyOutput)
+import qualified Convex.Lenses            as L
+import           Convex.PlutusLedger      (transAssetId, transTxOutRef)
+import           Convex.Scripts           (toHashableScriptData)
+import           ErgoDex.CardanoApi       (CardanoApiScriptError,
+                                           poolLqMintingScript,
+                                           poolNftMintingScript, poolScript)
+import           ErgoDex.Contracts.Pool   (PoolConfig (..))
+import           PlutusLedgerApi.V1.Value (AssetClass)
 
 data PoolNFT =
   PoolNFT
@@ -72,6 +75,16 @@ createPoolLiquidityToken txInput n = do
   spendPublicKeyOutput txInput
   pure PoolLiquidityToken
     { pltAsset = (C.PolicyId scriptHash, tn)
+    }
+
+poolConfig :: AssetClass -> AssetClass -> Integer -> PoolLiquidityToken -> PoolNFT -> PoolConfig
+poolConfig poolX poolY poolFeeNum  PoolLiquidityToken{pltAsset} PoolNFT{pnftAsset} =
+  PoolConfig
+    { poolNft = transAssetId $ uncurry C.AssetId pnftAsset
+    , poolX
+    , poolY
+    , poolLq = transAssetId $ uncurry C.AssetId pltAsset
+    , poolFeeNum
     }
 
 data PoolOutput =

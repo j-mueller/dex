@@ -6,7 +6,7 @@ module Spec.Unit(
 
 import           Cardano.Api            (AssetName, PolicyId)
 import qualified Cardano.Api            as C
-import           Control.Monad.Except   (runExceptT)
+import           Control.Monad.Except   (ExceptT, runExceptT)
 import           Convex.Class           (MonadBlockchain)
 import           Convex.Lenses          (emptyTx)
 import           Convex.MockChain.Utils (mockchainSucceeds)
@@ -17,6 +17,8 @@ import           Data.Proxy             (Proxy (..))
 import qualified Teddy.Matcher.BuildTx  as BuildTx
 import           Teddy.Matcher.BuildTx  (PoolLiquidityToken (..), PoolNFT (..),
                                          runBuildPoolTx)
+import           Teddy.Matcher.Command  (ActivePool, CreatePoolParams (..),
+                                         createPool)
 import           Teddy.Matcher.Operator (Operator (..), PaymentExtendedKey (..),
                                          Signing, balanceAndSubmitOperator,
                                          selectOperatorUTxO)
@@ -28,7 +30,7 @@ tests :: TestTree
 tests = testGroup "unit tests"
   [ testCase "create LQ pool NFT" (mockchainSucceeds createLQPoolNft)
   , testCase "create LQ pool liquidity" (mockchainSucceeds createLQPoolLiquidity)
-  -- , testCase "create LQ pool" (mockchainSucceeds createLQPool)
+  , testCase "create LQ pool" (mockchainSucceeds createLQPool)
   ]
 
 createLQPoolNft :: (MonadUtxoQuery m, MonadFail m, MonadBlockchain m) => m (C.Tx C.BabbageEra, (PolicyId, AssetName))
@@ -42,6 +44,17 @@ createLQPoolLiquidity = do
   utxo <- selectOperatorUTxO testOperator >>= maybe (fail "No UTxO found") pure
   (PoolLiquidityToken{pltAsset}, buildTx) <- runBuildPoolTx (BuildTx.createPoolLiquidityToken (fst utxo) 10000) >>= either (fail . (<>) "BuildTx failed: " . show) pure
   runExceptT (balanceAndSubmitOperator testOperator (buildTx emptyTx)) >>= either (fail . show) (pure . (,pltAsset))
+
+createLQPool :: (MonadUtxoQuery m, MonadBlockchain m, MonadFail m) => m ActivePool
+createLQPool = failOnErrorr $ do
+  let cpps = CreatePoolParams
+              { cppOperator = testOperator
+              , cppNumLiqTokens = 1000
+              , cppFee = 10
+              , cppAssetClassX = C.AdaAssetId
+              , cppAssetClassY = C.AdaAssetId
+              }
+  createPool cpps
 
 testOperator :: Operator Signing
 testOperator =
@@ -60,3 +73,6 @@ signingKeyFromCbor cbor = do
       vl = object ["type" .= s "PaymentExtendedSigningKeyShelley_ed25519_bip32", "description" .= s "", "cborHex" .= cbor]
   textEnvelope <- fromJSON vl & (\case { Error err -> Left (show err); Success e -> Right e })
   C.deserialiseFromTextEnvelope (C.proxyToAsType Proxy) textEnvelope & first show
+
+failOnErrorr :: (Show e, MonadFail m) => ExceptT e m a -> m a
+failOnErrorr x = runExceptT x >>= either (fail . show) pure

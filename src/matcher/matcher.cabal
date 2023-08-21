@@ -35,6 +35,7 @@ library
   exposed-modules:
     Teddy.Matcher
     Teddy.Matcher.BuildTx
+    Teddy.Matcher.Command
     Teddy.Matcher.Operator
     Teddy.Matcher.Query
     Teddy.Matcher.Scripts
