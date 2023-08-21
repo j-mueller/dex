@@ -5,7 +5,7 @@ module Teddy.Matcher.Command (
   createPool
 ) where
 
-import           Cardano.Api            (AssetId)
+import           Cardano.Api            (AssetId, Quantity, Value)
 import qualified Cardano.Api            as C
 import           Control.Monad.Except   (MonadError, throwError)
 import           Convex.BuildTx         (setMinAdaDepositAll)
@@ -42,21 +42,25 @@ data CreatePoolParams =
     { cppOperator     :: Operator Signing
     , cppNumLiqTokens :: Integer
     , cppFee          :: Integer -- ^ Fee in 1/1000th of the traded amount
-    , cppAssetClassX  :: AssetId
-    , cppAssetClassY  :: AssetId
+    , cppAssetClassX  :: (AssetId, Quantity)
+    , cppAssetClassY  :: (AssetId, Quantity)
     }
+
+initialValue :: CreatePoolParams -> Value
+initialValue CreatePoolParams{cppAssetClassX, cppAssetClassY} =
+  C.valueFromList [cppAssetClassX, cppAssetClassY]
 
 {-| Create a new LP pool with a number of liquidity tokens.
 -}
 createPool :: (MonadUtxoQuery m, MonadBlockchain m, MonadError CommandError m) => CreatePoolParams -> m ActivePool
-createPool CreatePoolParams{cppOperator, cppNumLiqTokens, cppFee, cppAssetClassX, cppAssetClassY} = do
+createPool params@CreatePoolParams{cppOperator, cppNumLiqTokens, cppFee, cppAssetClassX, cppAssetClassY} = do
   (txi, _) <- selectOperatorUTxO cppOperator >>= maybe (throwError $ NoSuitableInputFound cppOperator) pure
   (apPoolConfig, btx) <- liftEither ScriptError $ runBuildPoolTx $ do
-    cfg <- BuildTx.poolConfig (PL.transAssetId cppAssetClassX) (PL.transAssetId cppAssetClassY) cppFee
+    cfg <- BuildTx.poolConfig (PL.transAssetId $ fst cppAssetClassX) (PL.transAssetId $ fst cppAssetClassY) cppFee
             <$> BuildTx.createPoolLiquidityToken txi cppNumLiqTokens
             <*> BuildTx.createPoolNft txi
     n <- networkId
-    _ <- BuildTx.addPoolOutput n cfg mempty
+    _ <- BuildTx.addPoolOutput n cfg (initialValue params)
     queryProtocolParameters >>= setMinAdaDepositAll
     pure cfg
   apTx <- mapError BalanceSubmitFailed (balanceAndSubmitOperator cppOperator (btx emptyTx))

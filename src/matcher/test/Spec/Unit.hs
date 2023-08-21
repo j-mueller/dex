@@ -51,8 +51,8 @@ createLQPool = failOnErrorr $ do
               { cppOperator = testOperator
               , cppNumLiqTokens = 1000
               , cppFee = 10
-              , cppAssetClassX = C.AdaAssetId
-              , cppAssetClassY = C.AdaAssetId
+              , cppAssetClassX = (C.AdaAssetId, 1000)
+              , cppAssetClassY = (C.AdaAssetId, 1000)
               }
   createPool cpps
 
