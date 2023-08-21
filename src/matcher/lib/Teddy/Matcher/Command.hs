@@ -1,31 +1,37 @@
 module Teddy.Matcher.Command (
   ActivePool(..),
   CommandError(..),
+
+  -- * Creating LQ Pools
   CreatePoolParams(..),
-  createPool
+  createPool,
+
+  -- * Making deposits
+  DepositOutput(..),
+  MakeDepositParams(..),
+  makeDeposit
 ) where
 
 import           Cardano.Api            (AssetId, Quantity, Value)
 import qualified Cardano.Api            as C
 import           Control.Monad.Except   (MonadError, throwError)
-import           Convex.BuildTx         (setMinAdaDepositAll)
+import           Convex.BuildTx         (runBuildTxT, setMinAdaDepositAll)
 import           Convex.Class           (MonadBlockchain (..))
 import           Convex.Lenses          (emptyTx)
 import qualified Convex.PlutusLedger    as PL
 import           Convex.Utils           (txnUtxos)
-import           ErgoDex.CardanoApi     (CardanoApiScriptError)
 import           ErgoDex.Contracts.Pool (PoolConfig (..))
 import qualified Teddy.Matcher.BuildTx  as BuildTx
-import           Teddy.Matcher.BuildTx  (runBuildPoolTx)
-import           Teddy.Matcher.Operator (BalanceAndSubmitError, Operator,
+import           Teddy.Matcher.BuildTx  (DEXBuildTxError (..), Deposit)
+import           Teddy.Matcher.Operator (BalanceAndSubmitError, Operator (..),
                                          Signing, balanceAndSubmitOperator,
-                                         selectOperatorUTxO)
+                                         selectOperatorUTxO, verificationKey)
 import           Teddy.Matcher.Query    (MonadUtxoQuery)
-import           Teddy.Matcher.Utils    (liftEither, mapError)
+import           Teddy.Matcher.Utils    (mapError)
 
 data CommandError =
   NoSuitableInputFound (Operator Signing)
-  | ScriptError CardanoApiScriptError
+  | BuildTxError DEXBuildTxError
   | BalanceSubmitFailed BalanceAndSubmitError
   deriving stock (Show)
 
@@ -55,7 +61,7 @@ initialValue CreatePoolParams{cppAssetClassX, cppAssetClassY} =
 createPool :: (MonadUtxoQuery m, MonadBlockchain m, MonadError CommandError m) => CreatePoolParams -> m ActivePool
 createPool params@CreatePoolParams{cppOperator, cppNumLiqTokens, cppFee, cppAssetClassX, cppAssetClassY} = do
   (txi, _) <- selectOperatorUTxO cppOperator >>= maybe (throwError $ NoSuitableInputFound cppOperator) pure
-  (apPoolConfig, btx) <- liftEither ScriptError $ runBuildPoolTx $ do
+  (apPoolConfig, btx) <- runBuildTxT $ mapError (BuildTxError . BuildTxScriptError) $ do
     cfg <- BuildTx.poolConfig (PL.transAssetId $ fst cppAssetClassX) (PL.transAssetId $ fst cppAssetClassY) cppFee
             <$> BuildTx.createPoolLiquidityToken txi cppNumLiqTokens
             <*> BuildTx.createPoolNft txi
@@ -65,3 +71,28 @@ createPool params@CreatePoolParams{cppOperator, cppNumLiqTokens, cppFee, cppAsse
     pure cfg
   apTx <- mapError BalanceSubmitFailed (balanceAndSubmitOperator cppOperator (btx emptyTx))
   pure ActivePool{apTx, apPoolConfig, apTxOut = head (txnUtxos apTx)}
+
+{-| Parameters for a deposit to a liquidity pool
+-}
+data MakeDepositParams =
+  MakeDepositParams
+    { mdpOperator   :: Operator Signing
+    , mdpPoolConfig :: PoolConfig
+    , mdpQuantities :: (Quantity, Quantity)
+    }
+
+-- | UTxO with a deposit
+data DepositOutput =
+  DepositOutput
+    { doDeposit :: Deposit
+    , doTx      :: C.Tx C.BabbageEra
+    , doTxOut   :: C.TxIn
+    }
+
+makeDeposit :: (MonadUtxoQuery m, MonadBlockchain m, MonadError CommandError m) => MakeDepositParams -> m DepositOutput
+makeDeposit MakeDepositParams{mdpOperator, mdpPoolConfig, mdpQuantities} = do
+  (doDeposit, btx) <- runBuildTxT $ mapError BuildTxError $ do
+    (n, pParams) <- (,) <$> networkId <*> queryProtocolParameters
+    BuildTx.deposit n pParams (C.verificationKeyHash $ verificationKey $ oPaymentKey mdpOperator) (C.verificationKeyHash <$> oStakeKey  mdpOperator) mdpPoolConfig mdpQuantities
+  doTx <- mapError BalanceSubmitFailed (balanceAndSubmitOperator mdpOperator (btx emptyTx))
+  pure DepositOutput{doTx, doDeposit, doTxOut = fst $ head (txnUtxos doTx)}

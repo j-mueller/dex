@@ -7,6 +7,7 @@ module Spec.Unit(
 import           Cardano.Api            (AssetName, PolicyId)
 import qualified Cardano.Api            as C
 import           Control.Monad.Except   (ExceptT, runExceptT)
+import           Convex.BuildTx         (runBuildTxT)
 import           Convex.Class           (MonadBlockchain)
 import           Convex.Lenses          (emptyTx)
 import           Convex.MockChain.Utils (mockchainSucceeds)
@@ -15,10 +16,10 @@ import           Data.Bifunctor         (Bifunctor (..))
 import           Data.Function          ((&))
 import           Data.Proxy             (Proxy (..))
 import qualified Teddy.Matcher.BuildTx  as BuildTx
-import           Teddy.Matcher.BuildTx  (PoolLiquidityToken (..), PoolNFT (..),
-                                         runBuildPoolTx)
-import           Teddy.Matcher.Command  (ActivePool, CreatePoolParams (..),
-                                         createPool)
+import           Teddy.Matcher.BuildTx  (PoolLiquidityToken (..), PoolNFT (..))
+import           Teddy.Matcher.Command  (ActivePool (..), CreatePoolParams (..),
+                                         DepositOutput, MakeDepositParams (..),
+                                         createPool, makeDeposit)
 import           Teddy.Matcher.Operator (Operator (..), PaymentExtendedKey (..),
                                          Signing, balanceAndSubmitOperator,
                                          selectOperatorUTxO)
@@ -31,22 +32,23 @@ tests = testGroup "unit tests"
   [ testCase "create LQ pool NFT" (mockchainSucceeds createLQPoolNft)
   , testCase "create LQ pool liquidity" (mockchainSucceeds createLQPoolLiquidity)
   , testCase "create LQ pool" (mockchainSucceeds createLQPool)
+  , testCase "make a deposit" (mockchainSucceeds (createLQPool >>= depositLQ))
   ]
 
 createLQPoolNft :: (MonadUtxoQuery m, MonadFail m, MonadBlockchain m) => m (C.Tx C.BabbageEra, (PolicyId, AssetName))
 createLQPoolNft = do
   utxo <- selectOperatorUTxO testOperator >>= maybe (fail "No UTxO found") pure
-  (PoolNFT{pnftAsset}, buildTx) <- runBuildPoolTx (BuildTx.createPoolNft (fst utxo)) >>= either (fail . (<>) "BuildTx failed: " . show) pure
+  (PoolNFT{pnftAsset}, buildTx) <- failOnError (runBuildTxT (BuildTx.createPoolNft (fst utxo)))
   runExceptT (balanceAndSubmitOperator testOperator (buildTx emptyTx)) >>= either (fail . show) (pure . (,pnftAsset))
 
 createLQPoolLiquidity :: (MonadUtxoQuery m, MonadFail m, MonadBlockchain m) => m (C.Tx C.BabbageEra, (PolicyId, AssetName))
 createLQPoolLiquidity = do
   utxo <- selectOperatorUTxO testOperator >>= maybe (fail "No UTxO found") pure
-  (PoolLiquidityToken{pltAsset}, buildTx) <- runBuildPoolTx (BuildTx.createPoolLiquidityToken (fst utxo) 10000) >>= either (fail . (<>) "BuildTx failed: " . show) pure
+  (PoolLiquidityToken{pltAsset}, buildTx) <- failOnError (runBuildTxT (BuildTx.createPoolLiquidityToken (fst utxo) 10000))
   runExceptT (balanceAndSubmitOperator testOperator (buildTx emptyTx)) >>= either (fail . show) (pure . (,pltAsset))
 
 createLQPool :: (MonadUtxoQuery m, MonadBlockchain m, MonadFail m) => m ActivePool
-createLQPool = failOnErrorr $ do
+createLQPool = failOnError $ do
   let cpps = CreatePoolParams
               { cppOperator = testOperator
               , cppNumLiqTokens = 1000
@@ -55,6 +57,15 @@ createLQPool = failOnErrorr $ do
               , cppAssetClassY = (C.AdaAssetId, 1000)
               }
   createPool cpps
+
+depositLQ :: (MonadUtxoQuery m, MonadBlockchain m, MonadFail m) => ActivePool -> m DepositOutput
+depositLQ ActivePool{apPoolConfig} = failOnError
+  $ makeDeposit
+    MakeDepositParams
+      { mdpOperator = testOperator
+      , mdpPoolConfig = apPoolConfig
+      , mdpQuantities = (10000, 0)
+      }
 
 testOperator :: Operator Signing
 testOperator =
@@ -74,5 +85,7 @@ signingKeyFromCbor cbor = do
   textEnvelope <- fromJSON vl & (\case { Error err -> Left (show err); Success e -> Right e })
   C.deserialiseFromTextEnvelope (C.proxyToAsType Proxy) textEnvelope & first show
 
-failOnErrorr :: (Show e, MonadFail m) => ExceptT e m a -> m a
-failOnErrorr x = runExceptT x >>= either (fail . show) pure
+
+failOnError :: (Show e, MonadFail m) => ExceptT e m a -> m a
+failOnError x = runExceptT x >>= either (fail . show) pure
+

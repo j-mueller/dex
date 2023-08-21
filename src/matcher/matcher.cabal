@@ -76,5 +76,6 @@ test-suite teddy-matcher-test
     mtl,
     cardano-api,
     convex-base,
+    convex-coin-selection,
     convex-mockchain,
     plutus-ledger-api
