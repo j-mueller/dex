@@ -1,0 +1,45 @@
+cabal-version:       2.2
+name:                teddy-api
+version:             0.1.0.0
+synopsis:            HTTP API for Teddy UI
+license-file: LICENSE
+license: Apache-2.0
+author: Jann Müller <j-mueller@users.noreply.github.com>
+maintainer: Jann Müller <j-mueller@users.noreply.github.com>
+copyright: (c) 2023 Jann Müller
+build-type:          Simple
+
+common lang
+    default-language: Haskell2010
+    default-extensions: ExplicitForAll ScopedTypeVariables
+                        DeriveGeneric StandaloneDeriving DeriveLift
+                        GeneralizedNewtypeDeriving DeriveFunctor DeriveFoldable
+                        DeriveTraversable ImportQualifiedPost MultiParamTypeClasses
+                        DerivingStrategies NamedFieldPuns FlexibleContexts
+                        LambdaCase
+
+    other-extensions: DeriveAnyClass FlexibleInstances
+                      MultiParamTypeClasses TypeFamilies OverloadedStrings
+                      MonadComprehensions ConstrainedClassMethods TupleSections GADTs
+                      RankNTypes TemplateHaskell QuasiQuotes TypeApplications
+                      ExistentialQuantification
+
+    ghc-options: -Wall -Wnoncanonical-monad-instances
+                 -Wincomplete-uni-patterns -Wincomplete-record-updates
+                 -Wredundant-constraints -Widentities -Wunused-packages
+
+library
+  import: lang
+  hs-source-dirs:
+    lib
+  exposed-modules:
+    Teddy.Api
+
+  build-depends:
+    base >=4.16.4 && <5,
+    servant,
+    servant-openapi3,
+    openapi3,
+    text,
+    aeson,
+    bytestring

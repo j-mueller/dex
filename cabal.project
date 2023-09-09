@@ -19,6 +19,7 @@ index-state:
 
 packages:
   src/matcher
+  src/api
 
 with-compiler: ghc-9.2.8
 
